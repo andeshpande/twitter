@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:crypto/crypto.dart' as crypto;
 import 'dart:core';
+import 'package:json_object/json_object.dart';
 
 class oauth_twitter {
     String _oauth_consumer_key;   
@@ -71,8 +72,17 @@ class oauth_twitter {
 }
 
 
-void handleStream(String value) {
-  print(value);  
+void handleStream(response) {
+   var value = JSON.encode(response);  
+   /* if response is decoded directly,
+    * error "Unexpected end of string"
+    * or error "Unexpected charaacter at [some_position]
+    * is encountered
+    */ 
+   JsonObject data = new JsonObject.fromJsonString(value);
+   print(data);
+   // Cannot get values from data either :(
+      
 }
 
 
@@ -105,12 +115,12 @@ main() {
     request.headers.set('Authorization', authorization);
     request.headers.set('User-Agent', 'OAuth gem v0.4.4');
     request.headers.set('accept', '*/*');
-
+    
     return request.close();
   })
   .then((HttpClientResponse response) {
     // Process the response.
-//    response.listen(print);
+    //response.listen(print);
     response.transform(UTF8.decoder).listen(handleStream);
   });
 }
