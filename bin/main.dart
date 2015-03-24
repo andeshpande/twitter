@@ -1,52 +1,82 @@
 // Copyright (c) 2015, <your name>. All rights reserved. Use of this source code
 // is governed by a BSD-style license that can be found in the LICENSE file.
 
-import 'package:twitter/twitter.dart' as twitter;
-import 'dart:async';
 import 'dart:convert';
 import 'package:oauth/oauth.dart' as oauth;
 import 'dart:io';
-import 'package:json_object/json_object.dart';
+import 'dart:math';
+import 'package:oauth/src/core.dart';
+import 'package:crypto/crypto.dart' as crypto;
 
-class TwitterKey {
 
-  oauth.Token consumer;
-  oauth.Token user;
-
-  TwitterKey.createKey(String consumerKey,String consumerSecret,
-                              String accessToken,String accessSecret) {
-
-    this.consumer = createToken(consumerKey,consumerSecret);
-    this.user = createToken(accessToken,accessSecret);
+Map<String, String> generateParameters(
+    HttpClientRequest request, 
+    oauth.Token consumerToken, 
+    oauth.Token userToken, 
+    String nonce,
+    int timestamp) {
+  Map<String, String> params = new Map<String, String>();
+  params["oauth_consumer_key"] = consumerToken.key;
+  if(userToken != null) {
+    params["oauth_token"] = userToken.key;
   }
-
+  
+  params["oauth_signature_method"] = "HMAC-SHA1";
+  params["oauth_version"] = "1.0";
+  params["oauth_nonce"] = nonce;
+  params["oauth_timestamp"] = timestamp.toString();
+  
+  List<Parameter> requestParams = new List<Parameter>();
+  requestParams.addAll(mapParameters(request.uri.queryParameters));
+  requestParams.addAll(mapParameters(params));
+  
+//  if(request.contentLength != 0
+//      && request.headers.value("Content-Type") == "application/x-www-form-urlencoded") {
+//    requestParams.addAll(mapParameters(request.bodyFields));
+//  } 
+  
+  var sigBase = computeSignatureBase(request.method, request.uri, requestParams);
+  var sigKey = computeKey(consumerToken, userToken);
+  params["oauth_signature"] = computeSignature(sigKey, sigBase);
+  
+  return params;
 }
 
-oauth.Token createToken(String key, String secret) {
-  return new oauth.Token(key, secret);
-}
+var credentials = {
+  'consumerKey': 'PLLYguQdJqooNfAKwTlZe5MMi',                 
+  'consumerSecret': 'F4gQOWBt8OAyAfu3X9cPzt4osCsMchv3y6WnkNtFAs0uEOmgmr',                 
+  'accessToken': '2238912169-ThdEALf8Wxbg1aCpIVEMWD64tphM1hXipLJe2MM',                 
+  'accessTokenSecret': '0faSzZzfArxW2nMALeZPl3Rguh3smyL4afp4AgdINFm8r',                 
+};
 
-
+var url = "https://stream.twitter.com/1.1/statuses/sample.json";
 
 main() {
- 
-  // authorization string from https://dev.twitter.com/oauth/tools/signature-generator/7220915?nid=875
-  var authorization = 'OAuth oauth_consumer_key="PLLYguQdJqooNfAKwTlZe5MMi", oauth_nonce="b3b3626a4c5806bcc8601d98fe7d0d51", oauth_signature="lare0FLb8SNyITNJlJYkXLLEKH8%3D", oauth_signature_method="HMAC-SHA1", oauth_timestamp="1426774910", oauth_token="2238912169-ThdEALf8Wxbg1aCpIVEMWD64tphM1hXipLJe2MM", oauth_version="1.0"';
-  var url = "https://stream.twitter.com/1.1/statuses/sample.json";
+  var token = new oauth.Token(credentials['consumerKey'], credentials['consumerSecret']);
+  var userToken = new oauth.Token(credentials['accessToken'], credentials['accessTokenSecret']);
   
   new HttpClient().getUrl(Uri.parse(url))
   
   .then((HttpClientRequest request) {
     // Prepare the request.
-    request.headers.set('Authorization', authorization);
     request.headers.set('User-Agent', 'OAuth gem v0.4.4');
     request.headers.set('accept', '*/*');
+    
+    var timestamp = new DateTime.now().millisecondsSinceEpoch / 1000; // seconds
+    
+    var r = new Random();
+    var nonce = new List<int>.generate(8, (_) => r.nextInt(255), growable: false);
+    String nonceStr = crypto.CryptoUtils.bytesToBase64(nonce, urlSafe: true);
+    
+    var authorization = oauth.produceAuthorizationHeader(generateParameters(request, token, userToken, nonceStr, timestamp.toInt()));
+    print(authorization);
+    
+    request.headers.set('Authorization', authorization);
 
     return request.close();
   })
   .then((HttpClientResponse response) {
     // Process the response.
-//    response.listen(print);
     response.transform(UTF8.decoder).listen(print);
   });
 }
