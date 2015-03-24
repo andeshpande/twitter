@@ -10,6 +10,29 @@ import 'package:json_object/json_object.dart';
 import 'dart:async';
 
 
+import 'package:redstone/server.dart' as app;
+import 'package:redstone_web_socket/redstone_web_socket.dart';
+
+var twitterStream;
+void main() {
+  
+  getTwitterStream().then((ts) {    
+    app.setupConsoleLog();
+    twitterStream = ts;
+    //install web socket handlers
+    app.addPlugin(getWebSocketPlugin());
+
+    app.start();
+  });
+}
+
+@WebSocketHandler("/ws")
+onConnection(websocket) {
+  twitterStream.listen((message) {
+    websocket.add(message);
+  });
+}
+
 class oauth_twitter {
     String _oauth_consumer_key;   
     String _oauth_consumer_secret;  
@@ -90,7 +113,7 @@ void handleStream(response) {
 }
 
 
-main() {
+Future<Stream> getTwitterStream() {
    
   String consumer_key     = 'QSW4maKbx5jsWzDLxg48DPsO6';                          // Get Consumer Key from http://apps.twitter.com
   String consumer_secret  = 'xCLaSQcJPc3Mj4ATSFpsBUhCSlA81P2QPD7Ayc3c411x7sUrte'; // Get Consumer Secret from http://apps.twitter.com
@@ -111,7 +134,7 @@ main() {
   var authorization = obj.getAuthorizationHeaders();
   
   var url = "https://stream.twitter.com/1.1/statuses/sample.json";
-  new HttpClient().getUrl(Uri.parse(url))
+  return new HttpClient().getUrl(Uri.parse(url))
   
   .then((HttpClientRequest request) {
     // Prepare the request.
@@ -123,10 +146,12 @@ main() {
   })
   .then((HttpClientResponse response) {
     // Process the response.
-    response.transform(UTF8.decoder).transform(buffer).listen(handleStream);
+    return response.transform(UTF8.decoder).transform(buffer);
   });
 }
 
+// sometimes stream data is only part of a json string, and thus
+// needs to be buffered
 var buffer = new StreamTransformer<String, String>(
     (Stream<String> input, bool cancelOnError) {
       var bufferedString = '';
