@@ -7,6 +7,8 @@ import 'dart:math' as math;
 import 'package:crypto/crypto.dart' as crypto;
 import 'dart:core';
 import 'package:json_object/json_object.dart';
+import 'dart:async';
+
 
 class oauth_twitter {
     String _oauth_consumer_key;   
@@ -73,14 +75,16 @@ class oauth_twitter {
 
 
 void handleStream(response) {
-   var value = JSON.encode(response);  
+//  print(response);
+  var value = JSON.decode(response);
+   print(value);
    /* if response is decoded directly,
     * error "Unexpected end of string"
     * or error "Unexpected charaacter at [some_position]
     * is encountered
     */ 
-   JsonObject data = new JsonObject.fromJsonString(value);
-   print(data);
+//   JsonObject data = new JsonObject.fromJsonString(value);
+//   print(data);
    // Cannot get values from data either :(
       
 }
@@ -106,7 +110,6 @@ main() {
   oauth_twitter obj = new oauth_twitter(params); 
   var authorization = obj.getAuthorizationHeaders();
   
-  // print(authorization);
   var url = "https://stream.twitter.com/1.1/statuses/sample.json";
   new HttpClient().getUrl(Uri.parse(url))
   
@@ -120,7 +123,38 @@ main() {
   })
   .then((HttpClientResponse response) {
     // Process the response.
-    //response.listen(print);
-    response.transform(UTF8.decoder).listen(handleStream);
+    response.transform(UTF8.decoder).transform(buffer).listen(handleStream);
   });
 }
+
+var buffer = new StreamTransformer<String, String>(
+    (Stream<String> input, bool cancelOnError) {
+      var bufferedString = '';
+      
+      StreamController<String> controller;
+      
+      StreamSubscription<String> subscription;
+      
+      controller = new StreamController<String>(
+        onListen: () {
+          subscription = input.listen((data) {
+
+            if(data.endsWith('\n')) {
+              
+              if(!bufferedString.endsWith('\n')) {
+                controller.add(bufferedString+data); 
+                bufferedString = '';
+              } else 
+                controller.add(data);
+            }
+            else
+              bufferedString += data;
+          },
+          onError: controller.addError,
+          onDone: controller.close,
+          cancelOnError: cancelOnError);
+        },
+        sync: true);
+      
+      return controller.stream.listen(null);
+    });
