@@ -16,20 +16,22 @@ import 'package:redstone_web_socket/redstone_web_socket.dart';
 var twitterStream;
 void main() {
   
-  getTwitterStream().then((ts) {    
+//  getTwitterStream().then((ts) {    
     app.setupConsoleLog();
-    twitterStream = ts;
+//    twitterStream = ts;
     //install web socket handlers
     app.addPlugin(getWebSocketPlugin());
 
     app.start();
-  });
+//  });
 }
 
 @WebSocketHandler("/ws")
 onConnection(websocket) {
-  twitterStream.listen((message) {
-    websocket.add(message);
+  getTwitterStream().then((ts) {
+    ts.listen((message) {
+      websocket.add(message);
+    });    
   });
 }
 

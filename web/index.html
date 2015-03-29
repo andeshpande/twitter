@@ -4,11 +4,25 @@
   <head>
   	<meta charset="utf-8">
   	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- TWITTER BOOTSTRAP THEME -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap-theme.min.css">
+    
     <title>index</title>
   </head>
  
-  <body>   
-    <p id="text"></p>
+  <body>
+  <style>
+  </style>
+    
+    <div class="container">
+      <div id="deleted" class="col-sm-6"></div>
+      <div id="created" class="col-sm-6"></div>
+    </div>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>   
     <script type="application/dart" src="main.dart"></script>
     <!-- for this next line to work, your pubspec.yaml file must have a dependency on 'browser' -->
     <script src="packages/browser/dart.js"></script>
