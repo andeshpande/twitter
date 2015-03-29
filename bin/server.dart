@@ -13,7 +13,7 @@ import 'dart:async';
 import 'package:redstone/server.dart' as app;
 import 'package:redstone_web_socket/redstone_web_socket.dart';
 
-var twitterStream;
+StreamSubscription subscription;
 void main() {
   
 //  getTwitterStream().then((ts) {    
@@ -28,8 +28,12 @@ void main() {
 
 @WebSocketHandler("/ws")
 onConnection(websocket) {
+//  if(subscription != null)
+//    subscription.cancel();
+ 
   getTwitterStream().then((ts) {
-    ts.listen((message) {
+    
+    subscription = ts.listen((message) {
       websocket.add(message);
     });    
   });

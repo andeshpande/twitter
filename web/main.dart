@@ -35,18 +35,32 @@ void main() {
   // the json stream:
   var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
    
-  var deletedStream = jsonStream.where((Map data) => data.containsKey('delete'));
-  var createdStream = jsonStream.where((Map data) => !data.containsKey('delete'));
+  var createdStream = jsonStream.where((Map data) => data.containsKey('created_at'));
+  var langStream = createdStream.map((data) => data['lang']);
    
-  var deletedDiv = (document.querySelector('#deleted') as DivElement);
   var createdDiv = (document.querySelector('#created') as DivElement);
-  
-  deletedStream.listen((data) {
-    deletedDiv.insertBefore(new PreElement()..text = '${data['delete']['status']['id']}', deletedDiv.firstChild);          
-  });
-   
+  var langsUl = (document.querySelector('#langs') as UListElement);
+
   createdStream.listen((data) {
     createdDiv.insertBefore(new PreElement()..text = data['text'], createdDiv.firstChild);          
+  });
+  
+  var langs = <String, int>{};
+  langStream.listen((data) {
+    if(langs.containsKey(data)) {
+      langs[data]++;
+      langsUl.querySelector('#$data span').text = '${langs[data]}';
+    } else {
+      langs[data] = 1;
+      
+      var li = new LIElement()
+          ..text = data
+          ..id = data
+          ..className = 'list-group-item'
+          ..append(new SpanElement()..className = 'badge');
+      
+      langsUl.insertBefore(li, langsUl.firstChild);          
+    }
   });
    
 //   jsonStream.listen(print);
