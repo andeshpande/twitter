@@ -4,6 +4,7 @@ description: A minimal command-line application.
 environment:
   sdk: '>=1.0.0 <2.0.0'
 dependencies:
+  angular2: any
   redstone: any
   redstone_web_socket: any
 dev_dependencies:
