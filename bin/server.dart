@@ -10,26 +10,24 @@ import 'package:twitter/twitter_oauth.dart';
 import 'package:redstone/server.dart' as app;
 import 'package:redstone_web_socket/redstone_web_socket.dart';
 
-StreamSubscription subscription;
+Stream twitterStream;
 void main() {
   
+  getTwitterStream().then((ts) {
+    twitterStream = ts.asBroadcastStream();
+    
     app.setupConsoleLog();
     app.addPlugin(getWebSocketPlugin());
 
     app.start();
+  });
 }
 
 @WebSocketHandler("/ws")
 onConnection(websocket) {
-//  if(subscription != null)
-//    subscription.cancel();
- 
-  getTwitterStream().then((ts) {
-    
-    subscription = ts.listen((message) {
-      websocket.add(message);
-    });    
-  });
+  twitterStream.listen((message) {
+    websocket.add(message);
+  });    
 }
 
 Future<Stream> getTwitterStream() {
