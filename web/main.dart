@@ -2,6 +2,11 @@ import 'dart:html';
 import 'dart:async';
 import 'dart:convert';
 
+import "package:react/react.dart" as react;
+import "package:react/react_client.dart";
+
+import 'components.dart';
+
 WebSocket ws;
 
 void initWebSocket([int retrySeconds = 2]) {
@@ -34,34 +39,38 @@ void main() {
   
   // the json stream:
   var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
-   
-  var createdStream = jsonStream.where((Map data) => data.containsKey('created_at'));
-  var langStream = createdStream.map((data) => data['lang']);
-   
-  var createdDiv = (document.querySelector('#created') as DivElement);
-  var langsUl = (document.querySelector('#langs') as UListElement);
-
-  createdStream.listen((data) {
-    createdDiv.insertBefore(new PreElement()..text = data['text'], createdDiv.firstChild);          
-  });
   
-  var langs = <String, int>{};
-  langStream.listen((data) {
-    if(langs.containsKey(data)) {
-      langs[data]++;
-      langsUl.querySelector('#$data span').text = '${langs[data]}';
-    } else {
-      langs[data] = 1;
-      
-      var li = new LIElement()
-          ..text = data
-          ..id = data
-          ..className = 'list-group-item'
-          ..append(new SpanElement()..className = 'badge');
-      
-      langsUl.insertBefore(li, langsUl.firstChild);          
-    }
-  });
+  setClientConfiguration();
+  react.render(application({'jsonStream': jsonStream}), document.querySelector('#app'));
+  
+//   
+//  var createdStream = jsonStream.where((Map data) => data.containsKey('created_at'));
+//  var langStream = createdStream.map((data) => data['lang']);
+//   
+//  var createdDiv = (document.querySelector('#created') as DivElement);
+//  var langsUl = (document.querySelector('#langs') as UListElement);
+//
+//  createdStream.listen((data) {
+//    createdDiv.insertBefore(new PreElement()..text = data['text'], createdDiv.firstChild);          
+//  });
+  
+//  var langs = <String, int>{};
+//  langStream.listen((data) {
+//    if(langs.containsKey(data)) {
+//      langs[data]++;
+//      langsUl.querySelector('#$data span').text = '${langs[data]}';
+//    } else {
+//      langs[data] = 1;
+//      
+//      var li = new LIElement()
+//          ..text = data
+//          ..id = data
+//          ..className = 'list-group-item'
+//          ..append(new SpanElement()..className = 'badge');
+//      
+//      langsUl.insertBefore(li, langsUl.firstChild);          
+//    }
+//  });
    
 //   jsonStream.listen(print);
 }
