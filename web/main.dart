@@ -16,7 +16,7 @@ void initWebSocket([int retrySeconds = 2]) {
 
   void scheduleReconnect() {
     if (!reconnectScheduled) {
-      new Timer(new Duration(milliseconds: 1000 * retrySeconds), () => initWebSocket(retrySeconds * 2));
+      new Timer(new Duration(seconds: retrySeconds), () => initWebSocket(retrySeconds * 2));
     }
     reconnectScheduled = true;
   }
@@ -25,9 +25,9 @@ void initWebSocket([int retrySeconds = 2]) {
     ws.send('Hello from Dart!');
   });
 
-  ws.onClose.listen((e) {
-    scheduleReconnect();
-  });
+//  ws.onClose.listen((e) {
+//    scheduleReconnect();
+//  });
 
   ws.onError.listen((e) {
     scheduleReconnect();
@@ -35,42 +35,25 @@ void initWebSocket([int retrySeconds = 2]) {
 }
 // TODO: look into this: https://github.com/danschultz/isomorphic_dart
 void main() {
-  initWebSocket();
-  
-  // the json stream:
-  var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
-  
+
   setClientConfiguration();
-  react.render(application({'jsonStream': jsonStream}), document.querySelector('#app'));
   
-//   
-//  var createdStream = jsonStream.where((Map data) => data.containsKey('created_at'));
-//  var langStream = createdStream.map((data) => data['lang']);
-//   
-//  var createdDiv = (document.querySelector('#created') as DivElement);
-//  var langsUl = (document.querySelector('#langs') as UListElement);
-//
-//  createdStream.listen((data) {
-//    createdDiv.insertBefore(new PreElement()..text = data['text'], createdDiv.firstChild);          
-//  });
+  var startButton = (document.querySelector('#toggleStream') as ButtonElement);
   
-//  var langs = <String, int>{};
-//  langStream.listen((data) {
-//    if(langs.containsKey(data)) {
-//      langs[data]++;
-//      langsUl.querySelector('#$data span').text = '${langs[data]}';
-//    } else {
-//      langs[data] = 1;
-//      
-//      var li = new LIElement()
-//          ..text = data
-//          ..id = data
-//          ..className = 'list-group-item'
-//          ..append(new SpanElement()..className = 'badge');
-//      
-//      langsUl.insertBefore(li, langsUl.firstChild);          
-//    }
-//  });
-   
-//   jsonStream.listen(print);
+  startButton.onClick.listen((e) {
+    
+    if(startButton.text == 'Start') {
+      startButton.text = 'pauze';
+      initWebSocket();
+      
+      var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
+      react.render(application({'jsonStream': jsonStream}), document.querySelector('#app'));
+      
+    } else {
+      ws.close();
+      startButton.text = 'Start';
+      
+    }
+  });
+  
 }

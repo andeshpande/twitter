@@ -13,14 +13,22 @@
   </head>
  
   <body>
+    <style>
+      .selected {
+        background-color: lightskyblue;
+      }
+    </style>
     <!--
     <div class="container">
       <div id="created" class="col-sm-5"></div>
       <ul id="langs" class="col-sm-2 list-group"></ul>
     </div>
     -->
+    <button id="toggleStream">Start</button>
+    
     <div id="app"></div>
     
+    <script src="packages/react/react.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>   
     <script type="application/dart" src="main.dart"></script>
