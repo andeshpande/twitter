@@ -8,7 +8,7 @@ dependencies:
   redstone: any
   redstone_web_socket: any
   react_stream:
-      path: /Users/korsvanloon/dart/react_stream
+      path: C:\Users\Aniruddha\Documents\Rx\react_stream
 dev_dependencies:
   crypto: '>=0.9.0 <0.10.0'
   json_object: '>=1.0.18+2 <2.0.0'
