@@ -28,3 +28,14 @@ Stream merge(Stream a, Stream b) {
   */
   return controller.stream;
 }
+
+Stream buffer(Stream inputStream, int size) {
+  StreamController controller = new StreamController.broadcast();
+  List buff = new List();
+  
+  inputStream.listen((event) {
+    if(buff.length == size) {controller.add(buff); buff = [];}
+    else buff.add(event);
+  });
+ return controller.stream; 
+}

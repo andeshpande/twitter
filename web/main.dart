@@ -34,16 +34,13 @@ void initWebSocket([int retrySeconds = 2]) {
     scheduleReconnect();
   });
 }
-
 void main() {
   initWebSocket();
   var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
-  Stream a = op.rateController(jsonStream, 3);
+  Stream a = op.rateController(jsonStream, 1);
   Stream b = op.rateController(jsonStream, 6);
-  op.merge(a, b).listen(print);
- // a.listen(print);
+  op.buffer(a, 5).listen((event) => print(event));
 }
-
 /*
 // TODO: look into this: https://github.com/danschultz/isomorphic_dart
 void main() {
