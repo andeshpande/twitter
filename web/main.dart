@@ -38,12 +38,10 @@ void initWebSocket([int retrySeconds = 2]) {
 void main() {
   initWebSocket();
   var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
-  
-  // Interval between two stream events
-  var interval = 1;
-  Stream delayedStream = op.rateController(jsonStream, interval);
-  jsonStream.listen((val) => print("Normal: $val"));
-  delayedStream.listen((val)=>print("Delayed: $val"));
+  Stream a = op.rateController(jsonStream, 3);
+  Stream b = op.rateController(jsonStream, 6);
+  op.merge(a, b).listen(print);
+ // a.listen(print);
 }
 
 /*
