@@ -4,11 +4,12 @@ description: A minimal command-line application.
 environment:
   sdk: '>=1.0.0 <2.0.0'
 dependencies:
-  #react: any
+  diff_match_patch: any
+  react_stream:
+    path: /Users/korsvanloon/dart/react_stream
   redstone: any
   redstone_web_socket: any
-  react_stream:
-      path: /Users/korsvanloon/dart/react_stream
+  stream_transformers: any
 dev_dependencies:
   crypto: '>=0.9.0 <0.10.0'
   json_object: '>=1.0.18+2 <2.0.0'

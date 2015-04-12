@@ -9,6 +9,7 @@ import 'package:twitter/twitter_oauth.dart';
 
 import 'package:redstone/server.dart' as app;
 import 'package:redstone_web_socket/redstone_web_socket.dart';
+import 'package:http_parser/http_parser.dart';
 
 Stream twitterStream;
 void main() {
@@ -23,11 +24,35 @@ void main() {
   });
 }
 
+
 @WebSocketHandler("/ws")
-onConnection(websocket) {
-  twitterStream.listen((message) {
-    websocket.add(message);
-  });    
+class ServerEndPoint {
+
+  @OnOpen()
+  void onOpen(WebSocketSession session) {
+    print("connection established");
+  }
+
+  @OnMessage()
+  void onMessage(String message, WebSocketSession session) {
+    
+    if(message == 'done') {
+      session.connection.close();
+    } else {
+      twitterStream.pipe(session.connection);
+    }
+  }
+
+  @OnError()
+  void onError(error, WebSocketSession session) {
+    print("error: $error");
+  }
+
+  @OnClose()
+  void onClose(WebSocketSession session) {
+    print("connection closed");
+  }
+
 }
 
 Future<Stream> getTwitterStream() {

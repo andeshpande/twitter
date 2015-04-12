@@ -17,13 +17,25 @@
       .selected {
         background-color: lightskyblue;
       }
+      span.added {
+        color: lightskyblue;
+      }
+      span.deleted {
+        color: red;
+      }
+      pre.details {
+        height: 100vh;
+      }
+      div.prev {
+        position:absolute;
+        transition: opacity 1s ease-in-out;
+        opacity: 0;
+      }
+      div.curr {
+        position:absolute;
+      }
     </style>
-    <!--
-    <div class="container">
-      <div id="created" class="col-sm-5"></div>
-      <ul id="langs" class="col-sm-2 list-group"></ul>
-    </div>
-    -->
+
     <button id="toggleStream">Start</button>
     
     <div id="app"></div>

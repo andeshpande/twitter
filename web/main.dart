@@ -7,12 +7,10 @@ import "package:react/react_client.dart";
 
 import 'components.dart';
 
-WebSocket ws;
-
-void initWebSocket([int retrySeconds = 2]) {
+WebSocket initWebSocket([int retrySeconds = 2]) {
   var reconnectScheduled = false;
 
-  ws = new WebSocket('ws://0.0.0.0:8080/ws');
+  var ws = new WebSocket('ws://0.0.0.0:8080/ws');
 
   void scheduleReconnect() {
     if (!reconnectScheduled) {
@@ -25,13 +23,15 @@ void initWebSocket([int retrySeconds = 2]) {
     ws.send('Hello from Dart!');
   });
 
-//  ws.onClose.listen((e) {
-//    scheduleReconnect();
-//  });
+  ws.onClose.listen((e) {
+    print('closed');
+  });
 
   ws.onError.listen((e) {
     scheduleReconnect();
   });
+  
+  return ws;
 }
 // TODO: look into this: https://github.com/danschultz/isomorphic_dart
 void main() {
@@ -40,17 +40,24 @@ void main() {
   
   var startButton = (document.querySelector('#toggleStream') as ButtonElement);
   
+  WebSocket ws;
+  
+  
+  
   startButton.onClick.listen((e) {
-    
+
     if(startButton.text == 'Start') {
-      startButton.text = 'pauze';
-      initWebSocket();
-      
+      startButton.text = 'Pauze';
+      ws = initWebSocket();
+//      ws.onMessage.transform()
       var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
+
       react.render(application({'jsonStream': jsonStream}), document.querySelector('#app'));
       
     } else {
+      ws.send('done');
       ws.close();
+      
       startButton.text = 'Start';
       
     }
