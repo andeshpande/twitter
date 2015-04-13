@@ -39,3 +39,25 @@ Stream buffer(Stream inputStream, int size) {
   });
  return controller.stream; 
 }
+
+
+Stream zip(Stream a, Stream b, dynamic f(dynamic itemA, dynamic itemB)) {
+  StreamController controller = new StreamController.broadcast();
+  List aBuff = [];
+  List bBuff = [];
+  
+  void handle(List current, List secondary, dynamic event) {
+    current.add(event);
+    if(secondary.isEmpty) {return;}
+    else {
+      var aItem = aBuff.removeAt(0);
+      var bItem = bBuff.removeAt(0);
+      controller.add(f(aItem, bItem));
+    }
+  }
+  
+  a.listen((event) => handle(aBuff, bBuff, event));
+  b.listen((event) => handle(bBuff, aBuff, event));
+  
+  return controller.stream;
+}

@@ -34,12 +34,20 @@ void initWebSocket([int retrySeconds = 2]) {
     scheduleReconnect();
   });
 }
+
+
+
+
 void main() {
   initWebSocket();
   var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
-  Stream a = op.rateController(jsonStream, 1);
-  Stream b = op.rateController(jsonStream, 6);
-  op.buffer(a, 5).listen((event) => print(event));
+  Stream a = jsonStream.where((Map data) => data.containsKey('created_at'));
+  Stream b = jsonStream.where((Map data) => data.containsKey('delete'));
+  
+  jsonStream.take(12).listen(print);
+  // Create Key:Value pairs from 2 streams
+  op.zip(a, b, (x,y) {var pair = {y:x}; return pair;}).take(3).listen(print);
+ 
 }
 /*
 // TODO: look into this: https://github.com/danschultz/isomorphic_dart
