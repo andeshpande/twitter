@@ -40,7 +40,6 @@ Stream buffer(Stream inputStream, int size) {
  return controller.stream; 
 }
 
-
 Stream zip(Stream a, Stream b, dynamic f(dynamic itemA, dynamic itemB)) {
   StreamController controller = new StreamController.broadcast();
   List aBuff = [];
@@ -58,6 +57,16 @@ Stream zip(Stream a, Stream b, dynamic f(dynamic itemA, dynamic itemB)) {
   
   a.listen((event) => handle(aBuff, bBuff, event));
   b.listen((event) => handle(bBuff, aBuff, event));
+  
+  return controller.stream;
+}
+
+Stream filter(Stream input, dynamic f(dynamic event)) {
+  StreamController controller = new StreamController.broadcast();
+  input.listen((event) {
+    var x = f(event);
+    if(x!= null)controller.add(x);
+  });
   
   return controller.stream;
 }

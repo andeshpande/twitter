@@ -35,19 +35,19 @@ void initWebSocket([int retrySeconds = 2]) {
   });
 }
 
-
-
+// Some filter for a stream
+dynamic test(dynamic event) {
+  if(event.containsKey('delete')) return event;
+  else return null;
+}
 
 void main() {
   initWebSocket();
   var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
   Stream a = jsonStream.where((Map data) => data.containsKey('created_at'));
   Stream b = jsonStream.where((Map data) => data.containsKey('delete'));
-  
-  jsonStream.take(12).listen(print);
-  // Create Key:Value pairs from 2 streams
-  op.zip(a, b, (x,y) {var pair = {y:x}; return pair;}).take(3).listen(print);
- 
+  Stream c = op.filter(jsonStream, test);
+  c.listen(print);
 }
 /*
 // TODO: look into this: https://github.com/danschultz/isomorphic_dart
