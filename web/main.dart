@@ -6,7 +6,7 @@ import "package:react/react.dart" as react;
 import "package:react/react_client.dart";
 
 import 'components.dart';
-import 'operators.dart' as op;
+import 'operators.dart';
 
 WebSocket ws;
 
@@ -44,9 +44,11 @@ dynamic test(dynamic event) {
 void main() {
   initWebSocket();
   var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
+  var op = new Operator();
   Stream a = jsonStream.where((Map data) => data.containsKey('created_at'));
   Stream b = jsonStream.where((Map data) => data.containsKey('delete'));
   Stream c = op.filter(jsonStream, test);
+  //op.rateController(jsonStream, 3).listen(print);
   //op.timeInterval(c).listen(print);
   op.timeInterval(op.rateController(jsonStream, 3)).listen(print);
 }
