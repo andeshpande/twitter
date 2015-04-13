@@ -70,3 +70,10 @@ Stream filter(Stream input, dynamic f(dynamic event)) {
   
   return controller.stream;
 }
+
+Stream timeInterval(Stream input) {
+  StreamController controller = new StreamController.broadcast();
+  Stopwatch stopwatch = new Stopwatch()..start();
+  input.listen((event) => controller.add(stopwatch.elapsedMilliseconds));
+  return controller.stream;
+}

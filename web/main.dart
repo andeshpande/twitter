@@ -47,7 +47,8 @@ void main() {
   Stream a = jsonStream.where((Map data) => data.containsKey('created_at'));
   Stream b = jsonStream.where((Map data) => data.containsKey('delete'));
   Stream c = op.filter(jsonStream, test);
-  c.listen(print);
+  //op.timeInterval(c).listen(print);
+  op.timeInterval(op.rateController(jsonStream, 3)).listen(print);
 }
 /*
 // TODO: look into this: https://github.com/danschultz/isomorphic_dart
