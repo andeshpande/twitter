@@ -6,6 +6,7 @@ import "package:react/react.dart" as react;
 import "package:react/react_client.dart";
 
 import 'components.dart';
+import 'package:stream_transformers/stream_transformers.dart';
 
 WebSocket initWebSocket([int retrySeconds = 2]) {
   var reconnectScheduled = false;
@@ -40,26 +41,18 @@ void main() {
   
   var startButton = (document.querySelector('#toggleStream') as ButtonElement);
   
-  WebSocket ws;
+  WebSocket ws = initWebSocket();
   
+  var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data))
+      .transform(new When(startButton.onClick.transform(new Scan(true, (prev, _) => !prev))));
   
+  react.render(application({'jsonStream': jsonStream}), document.querySelector('#app'));
   
   startButton.onClick.listen((e) {
-
     if(startButton.text == 'Start') {
       startButton.text = 'Pauze';
-      ws = initWebSocket();
-//      ws.onMessage.transform()
-      var jsonStream = ws.onMessage.map((e) => JSON.decode(e.data));
-
-      react.render(application({'jsonStream': jsonStream}), document.querySelector('#app'));
-      
     } else {
-      ws.send('done');
-      ws.close();
-      
       startButton.text = 'Start';
-      
     }
   });
   

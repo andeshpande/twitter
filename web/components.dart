@@ -5,20 +5,78 @@ import 'dart:convert';
 import 'package:stream_transformers/stream_transformers.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
 
+class Delay implements StreamTransformer {
+  Stream durationStream;
+  Delay(this.durationStream);
+  
+  @override
+  Stream bind(Stream stream) {
+    var str = stream;
+    durationStream.map((i) => new Duration(milliseconds:i*30)).listen((_duration) {
+        str = stream.asyncMap((event) => new Future.delayed(_duration, () => event));
+    });
+    
+    return str;
+  }
+}
+
+var sample = (Stream<int> stream) => new StreamTransformer<Map, Map>(
+    (Stream<Map> input, bool cancelOnError) {
+      
+      var str = input;
+      stream.map((i) => new Duration(milliseconds:i*30)).listen((duration) {
+        
+        str = input.transform(new SamplePeriodically(duration));
+      });      
+      return str.listen(null);
+      
+//      controller = new StreamController<Map>(
+//        onListen: () {
+//          
+//          stream.map((i) => new Duration(milliseconds:i*30)).listen((duration) {
+//            
+//            return input.transform(new SamplePeriodically(duration));
+//            
+////            input.asyncMap((event) => new Future.delayed(duration, () => event)).listen((data) {
+////              controller.add(data);
+////            });
+//    
+//          },
+//          onError: controller.addError,
+//          onDone: controller.close,
+//          cancelOnError: cancelOnError);
+//        },
+//        sync: true);
+//      
+//      return controller.stream;
+    });
+
 class ApplicationComponent extends StreamComponent {
   
-  Stream get _jsonStream => props['jsonStream'];
+//  Stream get _jsonStream => (props['jsonStream'] as Stream).transform(new When(_durationStream));
+//  Stream get _jsonStream => (props['jsonStream'] as Stream).transform(sample(_durationStream));
+//  Stream get _jsonStream => (props['jsonStream'] as Stream).transform(new SamplePeriodically(new Duration(milliseconds:1000)));
+  Stream get _jsonStream => (props['jsonStream'] as Stream);
   
   Stream _tweetStream;
-  Stream _langStream;
+  Stream<Map> _langStream;
   StreamController _detailController = new StreamController();
+  StreamController _durationController = new StreamController();
   Stream get _detailStream => _detailController.stream;
+  Stream get _durationStream => _durationController.stream;
+  
   Function filter = (data) => true;
     
   componentWillMount() {
+//    _durationController.add(50);
+    
     _tweetStream = _jsonStream.where((Map data) => data.containsKey('created_at'));
     
     _langStream = _tweetStream.map((data) => data['lang']);
+    
+//    _durationStream.listen(print);
+    
+    
   }
   
   setFilter(Function f) {
@@ -26,13 +84,12 @@ class ApplicationComponent extends StreamComponent {
     redraw();
   }
   
-  addDetail(tweet) => _detailController.add(tweet);
-
   @override
   render() {
     return react.div({'key':'ct', 'className': 'container'}, [
+      react.input({'key':'ir', 'type': 'range', 'onChange': _durationController.add}, ''),
       languageFilter({'key':'lf', 'langs': _langStream, 'click': setFilter}),
-      tweetList({'key':'tl', 'tweets': _tweetStream, 'click': addDetail, 'filter':filter}),
+      tweetList({'key':'tl', 'tweets': _tweetStream, 'click': _detailController.add, 'filter':filter}),
       detail({'key' : 'dt', 'detailStream': _detailStream}),
     ]);
   }
@@ -55,6 +112,7 @@ class TweetListComponent extends StreamComponent {
 //  get stateStream => props['tweets'];
   
   componentWillMount() {
+        
     _tweetStream.listen((tweet) {
       tweets.insert(0, tweet);
       redraw();
