@@ -20,24 +20,13 @@
       span.added {
         color: lightskyblue;
       }
-      span.deleted {
-        color: red;
-      }
-      pre.details {
-        height: 100vh;
-      }
-      div.prev {
-        position:absolute;
-        transition: opacity 1s ease-in-out;
-        opacity: 0;
-      }
-      div.curr {
-        position:absolute;
+      .media-list li, .list-group li {
+        transition: all 0.2s ease-out;
       }
     </style>
-
+    <!--
     <button id="toggleStream">Pauze</button>
-    
+    -->
     <div id="app"></div>
     
     <script src="packages/react/react.js"></script>

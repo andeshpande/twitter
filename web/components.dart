@@ -3,7 +3,6 @@ import 'package:react/react.dart';
 import 'package:frappe/frappe.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'package:stream_transformers/stream_transformers.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:twitter/util.dart';
 
@@ -11,42 +10,52 @@ class ApplicationComponent extends StreamComponent {
   
   EventStream get _jsonStream => props['jsonStream'];
   
-  Stream _tweetStream;
-  Stream<Map> _langStream;
-  StreamController _detailController = new StreamController();
-  Stream get _detailStream => _detailController.stream;
+  Stream tweetStream;
+  Stream<Map> langStream;
+  Subject onTweetClicked = new Subject();
+  Subject onButtonClicked = new Subject();
+  bool started = true;
   
-  Subject<SyntheticEvent> onChange = new Subject<SyntheticEvent>();  
+  Subject<SyntheticEvent> onSliderChanged = new Subject<SyntheticEvent>();  
   
   Function filter = (data) => true;
     
+  
+  
   componentWillMount() {
     
     const MULTIPLIER = 5;
         
-    var sliderDuration = onChange.stream
+    var sliderDuration = onSliderChanged.stream
        // map the value of the slider into a duration 
       .map((e) => new Duration(milliseconds: MULTIPLIER * int.parse(e.target.value)));
     
     // We actually wanted to merge a unit stream with the sliderduration,
-    // but the merge function is bugged.
+    // but the merge method is bugged.
     var duration = new Subject<Duration>()
         // the initial value of the slider
         ..add(new Duration(milliseconds: MULTIPLIER*50))
         ..addStream(sliderDuration)
     ;
     
+    // Convert the button events to a boolean toggle stream.
+    var toggleStream = onButtonClicked.stream.scan(true, (prev, _) => !prev).asBroadcastStream();
     
     var controlledStream = duration.stream
         //change the speed of the stream
         .flatMapLatest((duration) => _jsonStream.sampleEachPeriod(duration))
         // filter out the empty data created by flatmap
         .where((e) => e.containsKey('lang'))
-        .asBroadcastStream();
+        .when(toggleStream)
+        .asBroadcastStream()
+      ;
     
-    _tweetStream = controlledStream.where((Map data) => data.containsKey('created_at'));
+    tweetStream = controlledStream.where((Map data) => data.containsKey('created_at'));
     
-    _langStream = controlledStream.map((data) => data['lang']);
+    langStream = controlledStream.map((data) => data['lang']);
+    
+    toggleStream.listen((s) => started = s);
+    
   }
   
   setFilter(Function f) {
@@ -56,12 +65,14 @@ class ApplicationComponent extends StreamComponent {
   
   @override
   render() {
-    
-    return div({'key':'ct', 'className': 'container'}, [
-      input({'key':'ir', 'type': 'range', 'onChange': onChange}, ''),
-      languageFilter({'key':'lf', 'langs': _langStream, 'click': setFilter}),
-      tweetList({'key':'tl', 'tweets': _tweetStream, 'click': _detailController.add, 'filter':filter}),
-      detail({'key' : 'dt', 'detailStream': _detailStream}),
+    var buttonText = started ? 'Pauze' : 'Start';
+    return 
+    div({'className': 'container'}, [
+      button({'onClick': onButtonClicked}, buttonText),
+      input({'type': 'range', 'onChange': onSliderChanged}),
+      languageFilter({'langs': langStream, 'click': setFilter}),
+      tweetList({'tweets': tweetStream,  'click': onTweetClicked, 'filter':filter}),
+      detail({'detailStream': onTweetClicked.stream}),
     ]);
   }
 }
@@ -71,7 +82,7 @@ class TweetListComponent extends StreamComponent {
   
   Stream get _tweetStream => props['tweets'];
   List tweets = [];
-  get filter => props['filter'];
+  Function get filter => props['filter'];
   var selected;
   
   handleClick(e, t) {
@@ -79,8 +90,6 @@ class TweetListComponent extends StreamComponent {
     props['click'](t);
     redraw();
   }
-  
-//  get stateStream => props['tweets'];
   
   componentWillMount() {
         
@@ -92,15 +101,19 @@ class TweetListComponent extends StreamComponent {
   
   @override
   render() {
-    return div({'key': 'created', 'className': 'col-sm-5'}, 
+    return ul({'className': 'col-sm-5 media-list'}, 
+        
       tweets.where(filter).map((t) {
-        return pre({
-            'key': t['id_str'], 
-            'onClick': (e) => handleClick(e, t),
-            'className': selected == t ? 'selected' : '',
-          }, 
+        return 
+        li({'key':t['id_str'], 'onClick': (e) => handleClick(e, t), 'className': 'media ' + (t == selected ? 'selected' : ''),}, [
+          div({'className': 'media-left'}, 
+            img({'className': 'media-object', 'src':t['user']['profile_image_url']})    
+          ),
+          div({'className': 'media-body'}, [
+            h4({'className': 'media-heading'}, t['user']['name']),            
             t['text']
-        );    
+          ])
+        ]);    
       })
     );
   }
@@ -157,30 +170,17 @@ class LanguageFilterComponent extends StreamComponent {
 }
 var languageFilter = registerComponent(() => new LanguageFilterComponent());
 
-class PropertyComponent extends StreamComponent {
-  String key;
-  var value;
-  
-  
-  
-  @override
-  render() {
-    
-    var children;
-    
-    return div({}, [
-      span({}, key),
-      value.runtimeType == Map
-    ]);
-  }
-}
-
 class DetailComponent extends StreamComponent {
   var encoder = new JsonUtf8Encoder(' ');
   
-  Stream get detailStream => props['detailStream'];
+  EventStream get detailStream => props['detailStream'];
   
-  combine(String prev, Map curr) {
+  
+  componentWillMount() {
+    detailStream.scan("", highlightDiff).listen(null);
+  }
+  
+  highlightDiff(String prev, Map curr) {
     
     var diffString = UTF8.decode(encoder.convert(curr));
     
@@ -190,39 +190,21 @@ class DetailComponent extends StreamComponent {
     var currList = d.map((d) {
       var a = '';
       switch(d.operation) {
-//        case DIFF_DELETE: a = span({'className': 'deleted'}, d.text); break;  
         case DIFF_EQUAL: a = span({'className': 'text-muted'}, d.text); break;
         case DIFF_INSERT: a = span({'className': 'added'}, d.text); break;  
       }
       return a;
     });        
-    
-    var prevList = d.map((d) {
-      var a = '';
-      switch(d.operation) {
-        case DIFF_DELETE: a = span({'className': 'deleted'}, d.text); break;  
-        case DIFF_EQUAL: a = span({'className': 'text-muted'}, d.text); break;
-//        case DIFF_INSERT: a = span({'className': 'added'}, d.text); break;  
-      }
-      return a;
-    });
         
-    setState({'prevList': prevList, 'currList': currList});
+    setState({'currList': currList});
     return diffString;
   }
-  
-  componentWillMount() {
-    detailStream.transform(new Scan("", combine)).listen((detail) {
-      
-//      setState(detail);
-    });
-  }
+
   
   @override
   render() {
     return pre({'key':'dt', 'className': 'col-sm-5 details'}, [
       div({'className':'curr'}, state['currList']),
-//      div({'className':'prev'}, state['prevList']),
     ]);
   }
 }
