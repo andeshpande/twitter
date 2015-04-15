@@ -1,6 +1,3 @@
-// Copyright (c) 2015, <your name>. All rights reserved. Use of this source code
-// is governed by a BSD-style license that can be found in the LICENSE file.
-
 import 'dart:convert';
 import 'dart:io';
 import 'dart:core';
@@ -9,7 +6,6 @@ import 'package:twitter/twitter_oauth.dart';
 
 import 'package:redstone/server.dart' as app;
 import 'package:redstone_web_socket/redstone_web_socket.dart';
-import 'package:http_parser/http_parser.dart';
 
 Stream twitterStream;
 void main() {
@@ -28,12 +24,7 @@ void main() {
 @WebSocketHandler("/ws")
 class ServerEndPoint {
 
-  @OnOpen()
-  void onOpen(WebSocketSession session) {
-    print("connection established");
-  }
-
-  @OnMessage()
+  @OnMessage() 
   void onMessage(String message, WebSocketSession session) {
     
     if(message == 'done') {
@@ -42,18 +33,12 @@ class ServerEndPoint {
       twitterStream.pipe(session.connection);
     }
   }
+  
 
-  @OnError()
-  void onError(error, WebSocketSession session) {
-    print("error: $error");
-  }
-
-  @OnClose()
-  void onClose(WebSocketSession session) {
-    print("connection closed");
-  }
-
+  @OnOpen() onOpen(WebSocketSession session) => print("connection established");
+  @OnClose() onClose(WebSocketSession session) => print("connection closed");
 }
+
 
 Future<Stream> getTwitterStream() {
    
@@ -74,31 +59,31 @@ Future<Stream> getTwitterStream() {
   
   .then((HttpClientRequest request) {
     // Prepare the request.
-    request.headers.set('Authorization', authorization);
-    request.headers.set('User-Agent', 'OAuth gem v0.4.4');
-    request.headers.set('accept', '*/*');
+    request.headers
+      ..set('Authorization', authorization)
+      ..set('User-Agent', 'OAuth gem v0.4.4')
+      ..set('accept', '*/*')
+    ;
     
     return request.close();
   })
   .then((HttpClientResponse response) {
     // Process the response.
-    return response.transform(UTF8.decoder).transform(buffer);
+    return response.transform(UTF8.decoder).transform(repair);
   });
 }
 
-// sometimes stream data is only part of a json string, and thus
-// needs to be buffered
-var buffer = new StreamTransformer<String, String>(
+// Sometimes a stream item is only part of a json string, and thus
+// needs to be buffered so we can repair it by glueing the parts back together.
+var repair = new StreamTransformer<String, String>(
     (Stream<String> input, bool cancelOnError) {
       var bufferedString = '';
       
       StreamController<String> controller;
-      
-      StreamSubscription<String> subscription;
-      
+            
       controller = new StreamController<String>(
         onListen: () {
-          subscription = input.listen((data) {
+          input.listen((data) {
 
             if(data.endsWith('\n')) {
               

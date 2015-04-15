@@ -1,33 +1,30 @@
 import 'package:react_stream/react_stream.dart';
 import 'package:react/react.dart';
 import 'package:frappe/frappe.dart';
-import 'dart:async';
 import 'dart:convert';
 import 'package:diff_match_patch/diff_match_patch.dart';
 import 'package:twitter/util.dart';
 
-class ApplicationComponent extends StreamComponent {
+class ApplicationComponent extends Component {
   
-  EventStream get _jsonStream => props['jsonStream'];
-  
-  Stream tweetStream;
-  Stream<Map> langStream;
+  EventStream tweetStream;
+  EventStream langStream;
+  EventStream toggleStream;
   Subject onTweetClicked = new Subject();
   Subject onButtonClicked = new Subject();
-  bool started = true;
-  
-  Subject<SyntheticEvent> onSliderChanged = new Subject<SyntheticEvent>();  
-  
-  Function filter = (data) => true;
-    
+  Subject onSliderChanged = new Subject();  
+  getInitialState() => {'started': true, 'filter': (data) => true};
   
   
   componentWillMount() {
     
-    const MULTIPLIER = 5;
-        
+    var _jsonStream = (props['jsonStream'] as EventStream);
+    
+    
+    const MULTIPLIER = 5;        
+    
     var sliderDuration = onSliderChanged.stream
-       // map the value of the slider into a duration 
+       // Map the value of the slider onto a duration 
       .map((e) => new Duration(milliseconds: MULTIPLIER * int.parse(e.target.value)));
     
     // We actually wanted to merge a unit stream with the sliderduration,
@@ -39,13 +36,15 @@ class ApplicationComponent extends StreamComponent {
     ;
     
     // Convert the button events to a boolean toggle stream.
-    var toggleStream = onButtonClicked.stream.scan(true, (prev, _) => !prev).asBroadcastStream();
+    toggleStream = onButtonClicked.stream.scan(true, (prev, _) => !prev).asBroadcastStream();
     
     var controlledStream = duration.stream
         //change the speed of the stream
         .flatMapLatest((duration) => _jsonStream.sampleEachPeriod(duration))
         // filter out the empty data created by flatmap
+        .distinct()
         .where((e) => e.containsKey('lang'))
+        // only run when clicked
         .when(toggleStream)
         .asBroadcastStream()
       ;
@@ -54,25 +53,38 @@ class ApplicationComponent extends StreamComponent {
     
     langStream = controlledStream.map((data) => data['lang']);
     
-    toggleStream.listen((s) => started = s);
-    
   }
   
-  setFilter(Function f) {
-    this.filter = f;
-    redraw();
-  }
+  componentDidMount(_) => toggleStream.listen((s) => setState({'started':s})); 
   
   @override
   render() {
-    var buttonText = started ? 'Pauze' : 'Start';
+    var buttonText = state['started'] ? 'Pauze' : 'Start';
+      
     return 
     div({'className': 'container'}, [
-      button({'onClick': onButtonClicked}, buttonText),
-      input({'type': 'range', 'onChange': onSliderChanged}),
-      languageFilter({'langs': langStream, 'click': setFilter}),
-      tweetList({'tweets': tweetStream,  'click': onTweetClicked, 'filter':filter}),
-      detail({'detailStream': onTweetClicked.stream}),
+      button({
+        'onClick': onButtonClicked, 
+        'className': 'btn btn-default btn-lg'
+        }, 
+        buttonText
+      ),
+      input({
+        'type': 'range', 
+        'onChange': onSliderChanged
+      }),
+      languageFilter({
+        'langs': langStream, 
+        'click': setState
+      }),
+      tweetList({
+        'tweets': tweetStream,
+        'click': onTweetClicked,
+        'filter': state['filter']
+      }),
+      detail({
+        'detailStream': onTweetClicked.stream
+      }),
     ]);
   }
 }
@@ -80,10 +92,11 @@ var application = registerComponent(() => new ApplicationComponent());
 
 class TweetListComponent extends StreamComponent {
   
-  Stream get _tweetStream => props['tweets'];
-  List tweets = [];
+  EventStream get _tweetStream => props['tweets'];
   Function get filter => props['filter'];
   var selected;
+  
+  getInitialState() => {'tweets': []};
   
   handleClick(e, t) {
     selected = t;
@@ -93,21 +106,19 @@ class TweetListComponent extends StreamComponent {
   
   componentWillMount() {
         
-    _tweetStream.listen((tweet) {
-      tweets.insert(0, tweet);
-      redraw();
-    });    
+    _tweetStream.scan([], (l,i) => l..insert(0, i))
+      .listen((list) => setState({'tweets': list}));    
   }
   
   @override
   render() {
     return ul({'className': 'col-sm-5 media-list'}, 
         
-      tweets.where(filter).map((t) {
+      state['tweets'].where(filter).map((t) {
         return 
-        li({'key':t['id_str'], 'onClick': (e) => handleClick(e, t), 'className': 'media ' + (t == selected ? 'selected' : ''),}, [
+        li({'key':t['id_str'], 'onClick': (e) => handleClick(e, t), 'className': 'media ' + (t == selected ? 'selected' : '')}, [
           div({'className': 'media-left'}, 
-            img({'className': 'media-object', 'src':t['user']['profile_image_url']})    
+            img({'className': 'media-object', 'src': t['user']['profile_image_url']})    
           ),
           div({'className': 'media-body'}, [
             h4({'className': 'media-heading'}, t['user']['name']),            
@@ -123,42 +134,43 @@ var tweetList = registerComponent(() => new TweetListComponent());
 class LanguageFilterComponent extends StreamComponent {
   
   get _langStream => props['langs'];
-  List langs = [{'lang': 'all', 'count': 0}]; // [{lang, count}]
-  var selected;
+  getInitialState() => {'langs': [{'lang': 'all', 'count': 0}], 'selected': null};
   
-  componentWillMount() {
-    _langStream.listen((lang) {
-      _addLang(lang);
-      redraw();
-    });    
+  componentDidMount(_) {
+    
+    _langStream.scan(state['langs'], (list, lang) {
+        _add(lang, to:list);
+        return list;
+      })
+      .listen((list) => setState({'langs': list})); 
   }
   
-  _addLang(lang) {
-    var l = langs.firstWhere((e) => e['lang'] == lang, orElse: () => null);
-    var all = langs.firstWhere((e) => e['lang'] == 'all');
+  _add(lang, {to}) {
+    var l = to.firstWhere((e) => e['lang'] == lang, orElse: () => null);
+    var all = to.firstWhere((e) => e['lang'] == 'all');
     all['count']++;
     if(l != null) {
       l['count']++;
     } else {
-      langs.add({'lang': lang, 'count': 1});
+      to.add({'lang': lang, 'count': 1});
     }
   }
   
   handleClick(e, lang) {
-    selected = lang;
-    props['click']((data) => lang['lang'] == 'all' || data['lang'] == lang['lang']);
-    redraw();
+    
+    props['click']({'filter': (data) => lang['lang'] == 'all' || data['lang'] == lang['lang']});
+    setState({'selected': lang});
   }
   
   @override
   render() {   
-    langs.sort((e1,e2) => e2['count'] - e1['count']);
+    state['langs'].sort((e1,e2) => e2['count'] - e1['count']);
     
     return ul({'key':'ul', 'id': 'langs', 'className': 'col-sm-2 list-group'},
-      langs.map((lang) {
+      state['langs'].map((lang) {
         return li({
             'key': lang['lang'], 
-            'className': 'list-group-item' + (selected == lang ? ' selected' : ''),
+            'className': 'list-group-item' + (state['selected'] == lang ? ' selected' : ''),
             'onClick': (e) => handleClick(e, lang)
           }, [
             lang['lang'],
