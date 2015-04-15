@@ -1,82 +1,52 @@
 import 'package:react_stream/react_stream.dart';
-import 'package:react/react.dart' as react;
+import 'package:react/react.dart';
+import 'package:frappe/frappe.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:stream_transformers/stream_transformers.dart';
 import 'package:diff_match_patch/diff_match_patch.dart';
-
-class Delay implements StreamTransformer {
-  Stream durationStream;
-  Delay(this.durationStream);
-  
-  @override
-  Stream bind(Stream stream) {
-    var str = stream;
-    durationStream.map((i) => new Duration(milliseconds:i*30)).listen((_duration) {
-        str = stream.asyncMap((event) => new Future.delayed(_duration, () => event));
-    });
-    
-    return str;
-  }
-}
-
-var sample = (Stream<int> stream) => new StreamTransformer<Map, Map>(
-    (Stream<Map> input, bool cancelOnError) {
-      
-      var str = input;
-      stream.map((i) => new Duration(milliseconds:i*30)).listen((duration) {
-        
-        str = input.transform(new SamplePeriodically(duration));
-      });      
-      return str.listen(null);
-      
-//      controller = new StreamController<Map>(
-//        onListen: () {
-//          
-//          stream.map((i) => new Duration(milliseconds:i*30)).listen((duration) {
-//            
-//            return input.transform(new SamplePeriodically(duration));
-//            
-////            input.asyncMap((event) => new Future.delayed(duration, () => event)).listen((data) {
-////              controller.add(data);
-////            });
-//    
-//          },
-//          onError: controller.addError,
-//          onDone: controller.close,
-//          cancelOnError: cancelOnError);
-//        },
-//        sync: true);
-//      
-//      return controller.stream;
-    });
+import 'package:twitter/util.dart';
 
 class ApplicationComponent extends StreamComponent {
   
-//  Stream get _jsonStream => (props['jsonStream'] as Stream).transform(new When(_durationStream));
-//  Stream get _jsonStream => (props['jsonStream'] as Stream).transform(sample(_durationStream));
-//  Stream get _jsonStream => (props['jsonStream'] as Stream).transform(new SamplePeriodically(new Duration(milliseconds:1000)));
-  Stream get _jsonStream => (props['jsonStream'] as Stream);
+  EventStream get _jsonStream => props['jsonStream'];
   
   Stream _tweetStream;
   Stream<Map> _langStream;
   StreamController _detailController = new StreamController();
-  StreamController _durationController = new StreamController();
   Stream get _detailStream => _detailController.stream;
-  Stream get _durationStream => _durationController.stream;
+  
+  Subject<SyntheticEvent> onChange = new Subject<SyntheticEvent>();  
   
   Function filter = (data) => true;
     
   componentWillMount() {
-//    _durationController.add(50);
     
-    _tweetStream = _jsonStream.where((Map data) => data.containsKey('created_at'));
+    const MULTIPLIER = 5;
+        
+    var sliderDuration = onChange.stream
+       // map the value of the slider into a duration 
+      .map((e) => new Duration(milliseconds: MULTIPLIER * int.parse(e.target.value)));
     
-    _langStream = _tweetStream.map((data) => data['lang']);
+    // We actually wanted to merge a unit stream with the sliderduration,
+    // but the merge function is bugged.
+    var duration = new Subject<Duration>()
+        // the initial value of the slider
+        ..add(new Duration(milliseconds: MULTIPLIER*50))
+        ..addStream(sliderDuration)
+    ;
     
-//    _durationStream.listen(print);
     
+    var controlledStream = duration.stream
+        //change the speed of the stream
+        .flatMapLatest((duration) => _jsonStream.sampleEachPeriod(duration))
+        // filter out the empty data created by flatmap
+        .where((e) => e.containsKey('lang'))
+        .asBroadcastStream();
     
+    _tweetStream = controlledStream.where((Map data) => data.containsKey('created_at'));
+    
+    _langStream = controlledStream.map((data) => data['lang']);
   }
   
   setFilter(Function f) {
@@ -86,15 +56,16 @@ class ApplicationComponent extends StreamComponent {
   
   @override
   render() {
-    return react.div({'key':'ct', 'className': 'container'}, [
-      react.input({'key':'ir', 'type': 'range', 'onChange': _durationController.add}, ''),
+    
+    return div({'key':'ct', 'className': 'container'}, [
+      input({'key':'ir', 'type': 'range', 'onChange': onChange}, ''),
       languageFilter({'key':'lf', 'langs': _langStream, 'click': setFilter}),
       tweetList({'key':'tl', 'tweets': _tweetStream, 'click': _detailController.add, 'filter':filter}),
       detail({'key' : 'dt', 'detailStream': _detailStream}),
     ]);
   }
 }
-var application = react.registerComponent(() => new ApplicationComponent());
+var application = registerComponent(() => new ApplicationComponent());
 
 class TweetListComponent extends StreamComponent {
   
@@ -121,9 +92,9 @@ class TweetListComponent extends StreamComponent {
   
   @override
   render() {
-    return react.div({'key': 'created', 'className': 'col-sm-5'}, 
+    return div({'key': 'created', 'className': 'col-sm-5'}, 
       tweets.where(filter).map((t) {
-        return react.pre({
+        return pre({
             'key': t['id_str'], 
             'onClick': (e) => handleClick(e, t),
             'className': selected == t ? 'selected' : '',
@@ -134,7 +105,7 @@ class TweetListComponent extends StreamComponent {
     );
   }
 }
-var tweetList = react.registerComponent(() => new TweetListComponent());
+var tweetList = registerComponent(() => new TweetListComponent());
 
 class LanguageFilterComponent extends StreamComponent {
   
@@ -170,21 +141,21 @@ class LanguageFilterComponent extends StreamComponent {
   render() {   
     langs.sort((e1,e2) => e2['count'] - e1['count']);
     
-    return react.ul({'key':'ul', 'id': 'langs', 'className': 'col-sm-2 list-group'},
+    return ul({'key':'ul', 'id': 'langs', 'className': 'col-sm-2 list-group'},
       langs.map((lang) {
-        return react.li({
+        return li({
             'key': lang['lang'], 
             'className': 'list-group-item' + (selected == lang ? ' selected' : ''),
             'onClick': (e) => handleClick(e, lang)
           }, [
             lang['lang'],
-            react.span({'className':'badge', 'key': 'badge'}, lang['count'])  
+            span({'className':'badge', 'key': 'badge'}, lang['count'])  
         ]);    
       })
     ); 
   }
 }
-var languageFilter = react.registerComponent(() => new LanguageFilterComponent());
+var languageFilter = registerComponent(() => new LanguageFilterComponent());
 
 class PropertyComponent extends StreamComponent {
   String key;
@@ -197,8 +168,8 @@ class PropertyComponent extends StreamComponent {
     
     var children;
     
-    return react.div({}, [
-      react.span({}, key),
+    return div({}, [
+      span({}, key),
       value.runtimeType == Map
     ]);
   }
@@ -219,9 +190,9 @@ class DetailComponent extends StreamComponent {
     var currList = d.map((d) {
       var a = '';
       switch(d.operation) {
-//        case DIFF_DELETE: a = react.span({'className': 'deleted'}, d.text); break;  
-        case DIFF_EQUAL: a = react.span({'className': 'text-muted'}, d.text); break;
-        case DIFF_INSERT: a = react.span({'className': 'added'}, d.text); break;  
+//        case DIFF_DELETE: a = span({'className': 'deleted'}, d.text); break;  
+        case DIFF_EQUAL: a = span({'className': 'text-muted'}, d.text); break;
+        case DIFF_INSERT: a = span({'className': 'added'}, d.text); break;  
       }
       return a;
     });        
@@ -229,9 +200,9 @@ class DetailComponent extends StreamComponent {
     var prevList = d.map((d) {
       var a = '';
       switch(d.operation) {
-        case DIFF_DELETE: a = react.span({'className': 'deleted'}, d.text); break;  
-        case DIFF_EQUAL: a = react.span({'className': 'text-muted'}, d.text); break;
-//        case DIFF_INSERT: a = react.span({'className': 'added'}, d.text); break;  
+        case DIFF_DELETE: a = span({'className': 'deleted'}, d.text); break;  
+        case DIFF_EQUAL: a = span({'className': 'text-muted'}, d.text); break;
+//        case DIFF_INSERT: a = span({'className': 'added'}, d.text); break;  
       }
       return a;
     });
@@ -249,10 +220,10 @@ class DetailComponent extends StreamComponent {
   
   @override
   render() {
-    return react.pre({'key':'dt', 'className': 'col-sm-5 details'}, [
-      react.div({'className':'curr'}, state['currList']),
-      react.div({'className':'prev'}, state['prevList']),
+    return pre({'key':'dt', 'className': 'col-sm-5 details'}, [
+      div({'className':'curr'}, state['currList']),
+//      div({'className':'prev'}, state['prevList']),
     ]);
   }
 }
-var detail = react.registerComponent(() => new DetailComponent());
+var detail = registerComponent(() => new DetailComponent());

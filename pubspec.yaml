@@ -5,6 +5,7 @@ environment:
   sdk: '>=1.0.0 <2.0.0'
 dependencies:
   diff_match_patch: any
+  frappe: any
   react_stream:
     path: /Users/korsvanloon/dart/react_stream
   redstone: any
