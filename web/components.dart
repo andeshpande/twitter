@@ -1,4 +1,3 @@
-import 'package:react_stream/react_stream.dart';
 import 'package:react/react.dart';
 import 'package:frappe/frappe.dart';
 import 'dart:convert';
@@ -41,10 +40,10 @@ class ApplicationComponent extends Component {
     var controlledStream = duration.stream
         //change the speed of the stream
         .flatMapLatest((duration) => _jsonStream.sampleEachPeriod(duration))
-        // filter out the empty data created by flatmap
+        // filter out the empty data created by flatmap/sample
         .distinct()
         .where((e) => e.containsKey('lang'))
-        // only run when clicked
+        // only run when the button allows it
         .when(toggleStream)
         .asBroadcastStream()
       ;
@@ -75,11 +74,11 @@ class ApplicationComponent extends Component {
       }),
       languageFilter({
         'langs': langStream, 
-        'click': setState
+        'onLanguageSelected': setState
       }),
       tweetList({
         'tweets': tweetStream,
-        'click': onTweetClicked,
+        'onTweetClicked': onTweetClicked,
         'filter': state['filter']
       }),
       detail({
@@ -90,7 +89,7 @@ class ApplicationComponent extends Component {
 }
 var application = registerComponent(() => new ApplicationComponent());
 
-class TweetListComponent extends StreamComponent {
+class TweetListComponent extends Component {
   
   EventStream get _tweetStream => props['tweets'];
   Function get filter => props['filter'];
@@ -100,7 +99,7 @@ class TweetListComponent extends StreamComponent {
   
   handleClick(e, t) {
     selected = t;
-    props['click'](t);
+    props['onTweetClicked'](t);
     redraw();
   }
   
@@ -131,9 +130,11 @@ class TweetListComponent extends StreamComponent {
 }
 var tweetList = registerComponent(() => new TweetListComponent());
 
-class LanguageFilterComponent extends StreamComponent {
+class LanguageFilterComponent extends Component {
   
-  get _langStream => props['langs'];
+  EventStream get _langStream => props['langs'];
+  Function get onLanguageSelected => props['onLanguageSelected'];
+  
   getInitialState() => {'langs': [{'lang': 'all', 'count': 0}], 'selected': null};
   
   componentDidMount(_) {
@@ -157,10 +158,12 @@ class LanguageFilterComponent extends StreamComponent {
   }
   
   handleClick(e, lang) {
-    
-    props['click']({'filter': (data) => lang['lang'] == 'all' || data['lang'] == lang['lang']});
+    onLanguageSelected({'filter': _createFilterFunction(lang)});
     setState({'selected': lang});
   }
+  
+  _createFilterFunction(lang) => 
+      (data) => lang['lang'] == 'all' || data['lang'] == lang['lang'];
   
   @override
   render() {   
@@ -182,7 +185,7 @@ class LanguageFilterComponent extends StreamComponent {
 }
 var languageFilter = registerComponent(() => new LanguageFilterComponent());
 
-class DetailComponent extends StreamComponent {
+class DetailComponent extends Component {
   var encoder = new JsonUtf8Encoder(' ');
   
   EventStream get detailStream => props['detailStream'];

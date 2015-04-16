@@ -6,8 +6,7 @@ environment:
 dependencies:
   diff_match_patch: any
   frappe: any
-  react_stream:
-    path: /Users/korsvanloon/dart/react_stream
+  react: any
   redstone: any
   redstone_web_socket: any
   stream_transformers: any
