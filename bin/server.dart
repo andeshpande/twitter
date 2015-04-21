@@ -6,6 +6,7 @@ import 'package:twitter/twitter_oauth.dart';
 
 import 'package:redstone/server.dart' as app;
 import 'package:redstone_web_socket/redstone_web_socket.dart';
+import 'package:redstone/server.dart';
 
 Stream twitterStream;
 void main() {
@@ -16,28 +17,37 @@ void main() {
     app.setupConsoleLog();
     app.addPlugin(getWebSocketPlugin());
 
-    app.start();
+    app.start(port:8888);
   });
 }
 
+@Route('/')
+hello() => 'hello';
 
 @WebSocketHandler("/ws")
-class ServerEndPoint {
+onConnection(websocket) {
+  twitterStream.pipe(websocket);
+}  
 
-  @OnMessage() 
-  void onMessage(String message, WebSocketSession session) {
-    
-    if(message == 'done') {
-      session.connection.close();
-    } else {
-      twitterStream.pipe(session.connection);
-    }
-  }
-  
-
-  @OnOpen() onOpen(WebSocketSession session) => print("connection established");
-  @OnClose() onClose(WebSocketSession session) => print("connection closed");
-}
+//@WebSocketHandler("/ws")
+//class ServerEndPoint {
+//
+//  @OnMessage() 
+//  void onMessage(String message, WebSocketSession session) {
+//    
+//    if(message == 'done') {
+//      session.connection.close();
+//    } else {
+//      twitterStream.pipe(session.connection);
+//    }
+//  }
+//  
+//  @OnError() onError(WebSocketSession session) => print("help");
+//  
+//
+//  @OnOpen() onOpen(WebSocketSession session) => print("connection established");
+//  @OnClose() onClose(WebSocketSession session) => print("connection closed");
+//}
 
 
 Future<Stream> getTwitterStream() {
